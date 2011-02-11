@@ -8,6 +8,7 @@ from PyKDE4 import kdecore
 import os
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
+UPPER_BAR_HEIGHT=24
 URL='http://3g.163.com/t/'
 HELPER_NAMES=["NeteaseMicroBlogHelper"]
 HELPERS=[]
@@ -41,6 +42,11 @@ class MiniWebApplet(plasmascript.Applet):
 		for cookie in self.page.cookieJar.allCookies():
 			allCookieString += cookie.toRawForm() + "\r\n"
 		self.applet.config().writeEntry(QString("cookies"), QString(allCookieString))
+	def loadFinished(self):
+		self.saveCookies()
+		self.busyWidget.setRunning(False)
+	def loadStarted(self):
+		self.busyWidget.setRunning(True)
 	def loadCookies(self):
 		allCookieString = self.applet.config().readEntry(QString("cookies"))
 		if allCookieString == None:
@@ -50,24 +56,31 @@ class MiniWebApplet(plasmascript.Applet):
 		self.page.cookieJar.setAllCookies(cookies)
 	def refreshPage(self):
 		url = self.page.triggerAction(QWebPage.Reload)
-		print "page reloaded"
 	def init(self):
 		self.resize(PLASMOID_WIDTH, PLASMOID_HEIGHT)
 		self.setAspectRatioMode(Plasma.IgnoreAspectRatio)
 		self.setHasConfigurationInterface(True)
-		# We need a layout
-		self.layout = QGraphicsLinearLayout(self.applet)
+		# the main layout
+		self.layout = QGraphicsLinearLayout(Qt.Vertical)
 		self.setLayout(self.layout)
+		# the upper sub-layout
+		self.upperLayout = QGraphicsLinearLayout(Qt.Horizontal)
 		# A web browser
 		self.web = Plasma.WebView()
+		# A loading icon
+		self.busyWidget = Plasma.BusyWidget()
+		self.busyWidget.setMaximumHeight(UPPER_BAR_HEIGHT)
+		self.upperLayout.addItem(self.busyWidget)
 		# use a customized WebPage class that sends customized user agent
 		self.page = MiniWebPage(self)
 		self.web.setPage(self.page)
 		self.web.setUrl(kdecore.KUrl(URL))
 		# add it to current layout
+		self.layout.addItem(self.upperLayout)
 		self.layout.addItem(self.web)
 		# save cookies when page finishes loading
-		self.connect(self.page, SIGNAL("loadFinished(bool)"), self.saveCookies)
+		self.connect(self.page, SIGNAL("loadFinished(bool)"), self.loadFinished)
+		self.connect(self.page, SIGNAL("loadStarted()"), self.loadStarted)
 		# load saved cookies
 		self.loadCookies()
 		# use a timer for automatic refresh
