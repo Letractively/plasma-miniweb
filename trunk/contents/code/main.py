@@ -5,6 +5,7 @@ from PyQt4.QtNetwork import *
 from PyKDE4.plasma import *
 from PyKDE4 import plasmascript
 from PyKDE4 import kdecore
+import lxml.html
 import os
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
@@ -45,6 +46,9 @@ class MiniWebApplet(plasmascript.Applet):
 	def loadFinished(self):
 		self.saveCookies()
 		self.busyWidget.setRunning(False)
+		doc = lxml.html.document_fromstring(self.web.html().toUtf8().data().decode("utf-8"))
+		title = doc.find(".//title").text
+		self.title.setText(QString(title))
 	def loadStarted(self):
 		self.busyWidget.setRunning(True)
 	def loadCookies(self):
@@ -67,9 +71,16 @@ class MiniWebApplet(plasmascript.Applet):
 		self.upperLayout = QGraphicsLinearLayout(Qt.Horizontal)
 		# A web browser
 		self.web = Plasma.WebView()
+		self.web.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+		# A title label
+		self.title = Plasma.Label()
+		self.title.setPreferredHeight(UPPER_BAR_HEIGHT)
+		self.title.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum))
+		self.upperLayout.addItem(self.title)
 		# A loading icon
 		self.busyWidget = Plasma.BusyWidget()
-		self.busyWidget.setMaximumHeight(UPPER_BAR_HEIGHT)
+		self.busyWidget.setPreferredSize(QSizeF(UPPER_BAR_HEIGHT, UPPER_BAR_HEIGHT))
+		self.busyWidget.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
 		self.upperLayout.addItem(self.busyWidget)
 		# use a customized WebPage class that sends customized user agent
 		self.page = MiniWebPage(self)
