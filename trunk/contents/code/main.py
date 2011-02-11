@@ -12,11 +12,13 @@ PLASMOID_HEIGHT=480
 UPPER_BAR_HEIGHT=24
 URL='http://3g.163.com/t/'
 HELPER_NAMES=["NeteaseMicroBlogHelper"]
-HELPERS=[]
+HELPERS={}
+ACTIVE_HELPER=None
 for helper in HELPER_NAMES:
 	exec "from helpers import " + helper
-	exec "HELPERS.append(" + helper + ".Helper())"
+	exec "HELPERS[\"" + helper + "\"]=" + helper +".Helper()"
 	print "Loaded", helper
+ACTIVE_HELPER=HELPERS["NeteaseMicroBlogHelper"]
 
 class MiniWebPage(QWebPage):
 	def __init__(self, parent):
@@ -27,9 +29,11 @@ class MiniWebPage(QWebPage):
 		return QString("Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7")
 	def acceptNavigationRequest(self, frame, request, type):
 		# use helper to translate URL
-		for helper in HELPERS:
-			request.setUrl(helper.translateUrl(request.url()))
-		if type == QWebPage.NavigationTypeLinkClicked and frame == None:
+		needNewWindow = False
+		if ACTIVE_HELPER != None:
+			needNewWindow = ACTIVE_HELPER.needNewWindow(request.url())
+			request.setUrl(ACTIVE_HELPER.translateUrl(request.url()))
+		if type == QWebPage.NavigationTypeLinkClicked and (frame == None or needNewWindow):
 			# open in new window
 			os.system("xdg-open " + request.url().toEncoded().data())
 			return False
@@ -47,8 +51,9 @@ class MiniWebApplet(plasmascript.Applet):
 		self.saveCookies()
 		self.busyWidget.setRunning(False)
 		doc = lxml.html.document_fromstring(self.web.html().toUtf8().data().decode("utf-8"))
-		title = doc.find(".//title").text
-		self.title.setText(QString(title))
+		title = doc.find(".//title")
+		if title != None:
+			self.title.setText(QString(title.text))
 	def loadStarted(self):
 		self.busyWidget.setRunning(True)
 	def loadCookies(self):
