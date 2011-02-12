@@ -11,28 +11,32 @@ import traceback
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
 UPPER_BAR_HEIGHT=24
-URL='http://3g.163.com/t/'
+
+DEFAULT_HOME_PAGE='http://3g.163.com/t/'
+DEFAULT_USER_AGENT='Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7'
+
 HELPER_NAMES=["BaseHelper", "NeteaseMicroBlogHelper"]
 HELPERS={}
 for helper in HELPER_NAMES:
 	exec "from helpers import " + helper
 	exec "HELPERS[\"" + helper + "\"]=" + helper +".Helper()"
 	print "Loaded", helper
-ACTIVE_HELPER=HELPERS["NeteaseMicroBlogHelper"]
+ACTIVE_HELPER="NeteaseMicroBlogHelper"
 
 class MiniWebPage(QWebPage):
-	def __init__(self, parent):
-		QWebPage.__init__(self, parent)
+	''' A customized QWebPage to be used by the WebView widget'''
+	def __init__(self, applet):
+		QWebPage.__init__(self, applet)
 		self.cookieJar = QNetworkCookieJar()
 		self.networkAccessManager().setCookieJar(self.cookieJar)
 		self.hoveredLink = None
+		self.applet = applet
 	def userAgentForUrl(self, url):
-		return QString("Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7")
+		return self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT)
 	def acceptNavigationRequest(self, frame, request, type):
+		needNewWindow = HELPERS[ACTIVE_HELPER].needNewWindow(request.url())
 		# use helper to translate URL
-		needNewWindow = False
-		needNewWindow = ACTIVE_HELPER.needNewWindow(request.url())
-		request.setUrl(ACTIVE_HELPER.translateUrl(request.url()))
+		request.setUrl(HELPERS[ACTIVE_HELPER].translateUrl(request.url()))
 		if type == QWebPage.NavigationTypeLinkClicked and (frame == None or needNewWindow):
 			# open in new window
 			os.system("xdg-open " + request.url().toEncoded().data())
@@ -44,11 +48,57 @@ class MiniWebPage(QWebPage):
 		# Because no one actualy create the window, I have to create it myself using the hoveredLink
 		if self.hoveredLink != None:
 			url = QUrl(self.hoveredLink)
-			url = ACTIVE_HELPER.translateUrl(url)
+			url = HELPERS[ACTIVE_HELPER].translateUrl(url)
 			os.system("xdg-open " + url.toEncoded().data())
 		return None
 
+class GeneralConfigPage(QWidget):
+	def __init__(self, parent, applet):
+		QLabel.__init__(self, parent)
+		self.applet = applet
+		self.setupUi()
+		self.loadConfig()
+		self.connect(parent, SIGNAL("okClicked()"), self.saveConfig)
+	def setupUi(self):
+		layout = QGridLayout()
+		# home page settings
+		self.homePageBox = QLineEdit()
+		self.homePageBox.setFixedWidth(300)
+		layout.addWidget(QLabel(QString("Home page:")), 0, 0, Qt.AlignRight)
+		layout.addWidget(self.homePageBox, 0, 1, Qt.AlignLeft)
+		# user agent
+		self.userAgentBox = QTextEdit()
+		self.userAgentBox.setFixedSize(QSize(500, 100))
+		layout.addWidget(QLabel(QString("User agent:")), 1, 0, Qt.AlignRight)
+		layout.addWidget(self.userAgentBox, 1, 1, Qt.AlignLeft)
+		# helpers
+		self.helperBox = QComboBox()
+		for helper in HELPER_NAMES:
+			self.helperBox.addItem(QString(helper))
+		layout.addWidget(QLabel(QString("Site helper:")), 2, 0, Qt.AlignRight)
+		layout.addWidget(self.helperBox, 2, 1, Qt.AlignLeft)
+		# options
+		self.showTitleOption = QCheckBox()
+		layout.addWidget(QLabel(QString("Show the title bar")), 3, 0, Qt.AlignRight)
+		layout.addWidget(self.showTitleOption, 3, 1, Qt.AlignLeft)
+		self.setLayout(layout)
+		self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
+	def loadConfig(self):
+		self.homePageBox.setText(self.applet.getConfigQString("homepage", DEFAULT_HOME_PAGE))
+		self.userAgentBox.setText(self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT))
+		self.helperBox.setCurrentIndex(HELPER_NAMES.index(ACTIVE_HELPER))
+	def saveConfig(self):
+		self.applet.applet.config().writeEntry(QString("homepage"), self.homePageBox.text())
+		self.applet.gotoHomePage()
+
 class MiniWebApplet(plasmascript.Applet):
+	def createConfigurationInterface(self, dlg):
+		dlg.addPage(GeneralConfigPage(dlg, self), "General", "internet-web-browser")
+	def getConfigQString(self, key, default):
+		homepage = self.config().readEntry(QString(key))
+		if homepage == None or homepage.trimmed().length() == 0:
+			return QString(default)
+		return homepage
 	def linkHovered(self, link, title, text):
 		self.page.hoveredLink = link
 	def __init__(self,parent,args=None):
@@ -76,6 +126,8 @@ class MiniWebApplet(plasmascript.Applet):
 		self.page.cookieJar.setAllCookies(cookies)
 	def refreshPage(self):
 		url = self.page.triggerAction(QWebPage.Reload)
+	def gotoHomePage(self):
+		self.web.setUrl(kdecore.KUrl(self.getConfigQString("homepage", DEFAULT_HOME_PAGE).toUtf8()))
 	def init(self):
 		self.resize(PLASMOID_WIDTH, PLASMOID_HEIGHT)
 		self.setAspectRatioMode(Plasma.IgnoreAspectRatio)
@@ -101,7 +153,7 @@ class MiniWebApplet(plasmascript.Applet):
 		# use a customized WebPage class that sends customized user agent
 		self.page = MiniWebPage(self)
 		self.web.setPage(self.page)
-		self.web.setUrl(kdecore.KUrl(URL))
+		self.gotoHomePage()
 		# add it to current layout
 		self.layout.addItem(self.upperLayout)
 		self.layout.addItem(self.web)
