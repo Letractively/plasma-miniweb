@@ -7,13 +7,13 @@ from PyKDE4 import plasmascript
 from PyKDE4 import kdecore
 import lxml.html
 import os
+import traceback
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
 UPPER_BAR_HEIGHT=24
 URL='http://3g.163.com/t/'
-HELPER_NAMES=["NeteaseMicroBlogHelper"]
+HELPER_NAMES=["BaseHelper", "NeteaseMicroBlogHelper"]
 HELPERS={}
-ACTIVE_HELPER=None
 for helper in HELPER_NAMES:
 	exec "from helpers import " + helper
 	exec "HELPERS[\"" + helper + "\"]=" + helper +".Helper()"
@@ -25,21 +25,32 @@ class MiniWebPage(QWebPage):
 		QWebPage.__init__(self, parent)
 		self.cookieJar = QNetworkCookieJar()
 		self.networkAccessManager().setCookieJar(self.cookieJar)
+		self.hoveredLink = None
 	def userAgentForUrl(self, url):
 		return QString("Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7")
 	def acceptNavigationRequest(self, frame, request, type):
 		# use helper to translate URL
 		needNewWindow = False
-		if ACTIVE_HELPER != None:
-			needNewWindow = ACTIVE_HELPER.needNewWindow(request.url())
-			request.setUrl(ACTIVE_HELPER.translateUrl(request.url()))
+		needNewWindow = ACTIVE_HELPER.needNewWindow(request.url())
+		request.setUrl(ACTIVE_HELPER.translateUrl(request.url()))
 		if type == QWebPage.NavigationTypeLinkClicked and (frame == None or needNewWindow):
 			# open in new window
 			os.system("xdg-open " + request.url().toEncoded().data())
 			return False
 		return QWebPage.acceptNavigationRequest(self, frame, request, type)
+	def createWindow(self, type):
+		# the "Open in new window" in the context-menu only goes here
+		# instead of acceptNavigationRequest.
+		# Because no one actualy create the window, I have to create it myself using the hoveredLink
+		if self.hoveredLink != None:
+			url = QUrl(self.hoveredLink)
+			url = ACTIVE_HELPER.translateUrl(url)
+			os.system("xdg-open " + url.toEncoded().data())
+		return None
 
 class MiniWebApplet(plasmascript.Applet):
+	def linkHovered(self, link, title, text):
+		self.page.hoveredLink = link
 	def __init__(self,parent,args=None):
 		plasmascript.Applet.__init__(self,parent)
 	def saveCookies(self):
@@ -104,6 +115,8 @@ class MiniWebApplet(plasmascript.Applet):
 		self.refreshTimer.setInterval(6000)
 		self.refreshTimer.setSingleShot(True)
 		self.connect(self.refreshTimer, SIGNAL("timeout()"), self.refreshPage)
+		# keep track of the currently hovered link
+		self.connect(self.page, SIGNAL("linkHovered(QString,QString,QString)"), self.linkHovered)
 #		self.connect(self.page, SIGNAL("loadStarted()"), self.refreshTimer.stop)
 #		self.connect(self.page, SIGNAL("loadFinished(bool)"), self.refreshTimer.start)
 

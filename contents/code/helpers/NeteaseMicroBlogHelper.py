@@ -1,7 +1,8 @@
 import string
 from PyQt4.QtCore import *
 from PyQt4.QtNetwork import *
-class Helper():
+import BaseHelper
+class Helper(BaseHelper.Helper):
 	def translateUrl(self, originalUrl):
 		urlString = originalUrl.toEncoded().data()
 		if string.find(urlString, "http://3g.163.com/t/urlcheck") == 0:
