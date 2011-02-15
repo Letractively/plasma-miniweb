@@ -145,11 +145,13 @@ class MiniWebApplet(plasmascript.Applet):
 	def loadFinished(self):
 		self.saveCookies()
 		self.busyWidget.setRunning(False)
+		self.busyWidget.hide()
 		doc = lxml.html.document_fromstring(self.web.html().toUtf8().data().decode("utf-8"))
 		title = doc.find(".//title")
 		if title != None:
 			self.title.setText(QString(title.text))
 	def loadStarted(self):
+		self.busyWidget.show()
 		self.busyWidget.setRunning(True)
 	def loadCookies(self):
 		allCookieString = self.applet.config().readEntry(QString("cookies"))
