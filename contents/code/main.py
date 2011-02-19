@@ -27,14 +27,18 @@ from PyKDE4 import plasmascript
 from PyKDE4 import kdecore
 import lxml.html
 import os
-import traceback
+import time
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
 UPPER_BAR_HEIGHT=24
 
 DEFAULT_HOME_PAGE='http://3g.163.com/t/'
 DEFAULT_USER_AGENT='Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7'
-
+DEFAULT_RELOAD_INTERVAL=60
+DEFAULT_AUTO_RELOAD='False'
+DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED='True'
+DEFAULT_HELPER="NeteaseMicroBlogHelper"
+DEFAULT_SHOW_TITLE="True"
 HELPER_NAMES=["BaseHelper", "NeteaseMicroBlogHelper"]
 HELPERS={}
 for helper in HELPER_NAMES:
@@ -42,9 +46,6 @@ for helper in HELPER_NAMES:
 	exec "HELPERS[\"" + helper + "\"]=" + helper +".Helper()"
 	print "Loaded", helper
 
-DEFAULT_HELPER="NeteaseMicroBlogHelper"
-
-DEFAULT_SHOW_TITLE="True"
 
 class MiniWebPage(QWebPage):
 	''' A customized QWebPage to be used by the WebView widget'''
@@ -74,7 +75,6 @@ class MiniWebPage(QWebPage):
 			url = HELPERS[self.applet.getConfigString("helper", DEFAULT_HELPER)].translateUrl(url)
 			os.system("xdg-open " + url.toEncoded().data())
 		return None
-
 class GeneralConfigPage(QWidget):
 	def __init__(self, parent, applet):
 		QLabel.__init__(self, parent)
@@ -82,45 +82,86 @@ class GeneralConfigPage(QWidget):
 		self.setupUi()
 		self.loadConfig()
 		self.connect(parent, SIGNAL("okClicked()"), self.saveConfig)
+	def updateReloadSectionUi(self):
+		if self.autoReloadOption.checkState() == Qt.Checked:
+			enabled = True
+		else:
+			enabled = False
+		self.disableReloadWhenFocusedLabel.setEnabled(enabled)
+		self.reloadIntervalLabel.setEnabled(enabled)
+		self.disableReloadWhenFocusedOption.setEnabled(enabled)
+		self.reloadInterval.setEnabled(enabled)
 	def setupUi(self):
 		layout = QGridLayout()
+		row = 0
 		# home page settings
 		self.homePageBox = QLineEdit()
 		self.homePageBox.setFixedWidth(300)
-		layout.addWidget(QLabel(QString("Home page:")), 0, 0, Qt.AlignRight)
-		layout.addWidget(self.homePageBox, 0, 1, Qt.AlignLeft)
+		layout.addWidget(QLabel(QString("Home page:")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.homePageBox, row, 1, Qt.AlignLeft)
 		# user agent
+		row = row + 1
 		self.userAgentBox = QTextEdit()
 		self.userAgentBox.setFixedSize(QSize(500, 100))
-		layout.addWidget(QLabel(QString("User agent:")), 1, 0, Qt.AlignRight)
-		layout.addWidget(self.userAgentBox, 1, 1, Qt.AlignLeft)
+		layout.addWidget(QLabel(QString("User agent:")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.userAgentBox, row, 1, Qt.AlignLeft)
 		# helpers
+		row = row + 1
 		self.helperBox = QComboBox()
 		for helper in HELPER_NAMES:
 			self.helperBox.addItem(QString(helper))
-		layout.addWidget(QLabel(QString("Site helper:")), 2, 0, Qt.AlignRight)
-		layout.addWidget(self.helperBox, 2, 1, Qt.AlignLeft)
+		layout.addWidget(QLabel(QString("Site helper:")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.helperBox, row, 1, Qt.AlignLeft)
+		# automatic reloading
+		row = row + 1
+		self.autoReloadOption = QCheckBox()
+		layout.addWidget(QLabel(QString("Automatic refresh")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.autoReloadOption, row, 1, Qt.AlignLeft)
+		self.connect(self.autoReloadOption, SIGNAL("stateChanged(int)"), self.updateReloadSectionUi)
+		row = row + 1
+		self.disableReloadWhenFocusedOption = QCheckBox()
+		self.disableReloadWhenFocusedLabel = QLabel(QString("No auto-refresh if mouse hover or content changed"))
+		layout.addWidget(self.disableReloadWhenFocusedLabel, row, 0, Qt.AlignRight)
+		layout.addWidget(self.disableReloadWhenFocusedOption, row, 1, Qt.AlignLeft)
+		row = row + 1
+		self.reloadInterval = QTimeEdit()
+		self.reloadInterval.setDisplayFormat(QString("hh:mm:ss"))
+		self.reloadIntervalLabel = QLabel(QString("Refresh interval"))
+		layout.addWidget(self.reloadIntervalLabel, row, 0, Qt.AlignRight)
+		layout.addWidget(self.reloadInterval, row, 1, Qt.AlignLeft)
+
 		# options
+		row = row + 1
 		self.showTitleOption = QCheckBox()
-		layout.addWidget(QLabel(QString("Show the title bar")), 3, 0, Qt.AlignRight)
-		layout.addWidget(self.showTitleOption, 3, 1, Qt.AlignLeft)
+		layout.addWidget(QLabel(QString("Show the title bar")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.showTitleOption, row, 1, Qt.AlignLeft)
 		self.setLayout(layout)
 		self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
+
+		self.checkBoxes = [{"key":"showtitle", "default":DEFAULT_SHOW_TITLE, "widget":self.showTitleOption},
+				{"key":"autoreload", "default":DEFAULT_AUTO_RELOAD, "widget":self.autoReloadOption},
+				{"key":"disablereloadwhenfocused", "default":DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED, "widget":self.disableReloadWhenFocusedOption}]
 	def loadConfig(self):
 		self.homePageBox.setText(self.applet.getConfigQString("homepage", DEFAULT_HOME_PAGE))
 		self.userAgentBox.setText(self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT))
 		self.helperBox.setCurrentIndex(HELPER_NAMES.index(self.applet.getConfigQString("helper", DEFAULT_HELPER)))
-		if self.applet.getConfigString("showtitle", "True") == "True":
-			self.showTitleOption.setCheckState(Qt.Checked)
-		else:
-			self.showTitleOption.setCheckState(Qt.Unchecked)
+		reloadIntervalTime = QTime().addSecs(self.applet.getConfigInt("reloadinterval", DEFAULT_RELOAD_INTERVAL))
+		self.reloadInterval.setTime(reloadIntervalTime)
+		for checkbox in self.checkBoxes:
+			if self.applet.getConfigString(checkbox["key"], checkbox["default"]) == "True":
+				checkbox["widget"].setCheckState(Qt.Checked)
+			else:
+				checkbox["widget"].setCheckState(Qt.Unchecked)
+		self.updateReloadSectionUi()
 	def saveConfig(self):
-		self.applet.applet.config().writeEntry(QString("homepage"), self.homePageBox.text())
-		self.applet.applet.config().writeEntry(QString("helper"), QString(HELPER_NAMES[self.helperBox.currentIndex()]))
-		if self.showTitleOption.checkState() == Qt.Checked:
-			self.applet.applet.config().writeEntry(QString("showtitle"), QString("True"))
-		else:
-			self.applet.applet.config().writeEntry(QString("showtitle"), QString("False"))
+		self.applet.config().writeEntry(QString("homepage"), self.homePageBox.text())
+		self.applet.config().writeEntry(QString("helper"), QString(HELPER_NAMES[self.helperBox.currentIndex()]))
+		self.applet.config().writeEntry(QString("reloadinterval"), str(QTime().secsTo(self.reloadInterval.time())))
+		for checkbox in self.checkBoxes:
+			if checkbox["widget"].checkState() == Qt.Checked:
+				self.applet.config().writeEntry(QString(checkbox["key"]), QString("True"))
+			else:
+				self.applet.config().writeEntry(QString(checkbox["key"]), QString("False"))
 		self.applet.initializeView()
 
 class MiniWebApplet(plasmascript.Applet):
@@ -133,10 +174,15 @@ class MiniWebApplet(plasmascript.Applet):
 		return homepage
 	def getConfigString(self, key, default):
 		return self.getConfigQString(key, default).toUtf8().data()
+	def getConfigInt(self, key, default):
+		return int(self.getConfigString(key, str(default)))
 	def linkHovered(self, link, title, text):
 		self.page.hoveredLink = link
 	def __init__(self,parent,args=None):
 		plasmascript.Applet.__init__(self,parent)
+		self.nextAutoReloadTime = -1
+	def resetAutoReloadTimer(self):
+		self.nextAutoReloadTime = int(time.time()) + self.getConfigInt("reloadinterval", DEFAULT_RELOAD_INTERVAL)
 	def saveCookies(self):
 		allCookieString = ""
 		for cookie in self.page.cookieJar.allCookies():
@@ -150,6 +196,7 @@ class MiniWebApplet(plasmascript.Applet):
 		title = doc.find(".//title")
 		if title != None:
 			self.title.setText(QString(title.text))
+		self.resetAutoReloadTimer()
 	def loadStarted(self):
 		self.busyWidget.show()
 		self.busyWidget.setRunning(True)
@@ -160,14 +207,36 @@ class MiniWebApplet(plasmascript.Applet):
 		allCookieString = allCookieString.toUtf8().data()
 		cookies = QNetworkCookie.parseCookies(allCookieString)
 		self.page.cookieJar.setAllCookies(cookies)
-	def refreshPage(self):
-		url = self.page.triggerAction(QWebPage.Reload)
+	def checkAutoReloadPage(self):
+		# I can't find a way to know whether the plasmoid has keyboard focus,
+		# so I use this work-around
+		if self.getConfigString("disablereloadwhenfocused", DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED) == "True":
+			if self.page.isModified():
+				self.resetAutoReloadTimer()
+				return
+			if self.applet.isUnderMouse():
+				self.resetAutoReloadTimer()
+				return
+		if self.nextAutoReloadTime < 0 or self.nextAutoReloadTime > time.time():
+			return
+		print "Automatic reloading page ..."
+		# I do not use QWebPage.Reload, instead I set re-set the Url to
+		# only refresh the page, and not to reload other resources such as images
+		#url = self.page.triggerAction(QWebPage.Reload)
+		self.web.setUrl(kdecore.KUrl(self.web.mainFrame().url()))
+		# -1 means temporarily disable the timer
+		# it will be resumed after load finished
+		self.nextAutoReloadTime = -1
 	def initializeView(self):
-		if self.getConfigString("showtitle", "True") == "True":
+		if self.getConfigString("showtitle", DEFAULT_SHOW_TITLE) == "True":
 			self.upperBar.setMaximumHeight(UPPER_BAR_HEIGHT)
 		else:
 			self.upperBar.setMaximumHeight(0)
 		self.web.setUrl(kdecore.KUrl(self.getConfigString("homepage", DEFAULT_HOME_PAGE)))
+		if self.getConfigString("autoreload", DEFAULT_AUTO_RELOAD) == "True":
+			self.refreshTimer.start()
+		else:
+			self.refreshTimer.stop()
 	def init(self):
 		self.resize(PLASMOID_WIDTH, PLASMOID_HEIGHT)
 		self.setAspectRatioMode(Plasma.IgnoreAspectRatio)
@@ -205,15 +274,14 @@ class MiniWebApplet(plasmascript.Applet):
 		self.loadCookies()
 		# use a timer for automatic refresh
 		self.refreshTimer = QTimer(self)
-		self.refreshTimer.setInterval(6000)
-		self.refreshTimer.setSingleShot(True)
-		self.connect(self.refreshTimer, SIGNAL("timeout()"), self.refreshPage)
+		self.refreshTimer.setInterval(1000)
+		self.refreshTimer.setSingleShot(False)
+		self.connect(self.refreshTimer, SIGNAL("timeout()"), self.checkAutoReloadPage)
 		# keep track of the currently hovered link
 		self.connect(self.page, SIGNAL("linkHovered(QString,QString,QString)"), self.linkHovered)
 
 		self.initializeView()
-#		self.connect(self.page, SIGNAL("loadStarted()"), self.refreshTimer.stop)
-#		self.connect(self.page, SIGNAL("loadFinished(bool)"), self.refreshTimer.start)
+		self.refreshTimer.start()
 
 def CreateApplet(parent):
 	return MiniWebApplet(parent)
