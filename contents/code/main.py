@@ -28,17 +28,23 @@ from PyKDE4 import kdecore
 import lxml.html
 import os
 import time
+
+# UI metrics
 PLASMOID_WIDTH=380
 PLASMOID_HEIGHT=480
 UPPER_BAR_HEIGHT=24
 
-DEFAULT_HOME_PAGE='http://3g.163.com/t/'
+# Default settings
+DEFAULT_HOME_PAGE='http://news.google.com/'
+DEFAULT_CUSTOMIZE_USER_AGENT="True"
 DEFAULT_USER_AGENT='Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7'
 DEFAULT_RELOAD_INTERVAL=60
 DEFAULT_AUTO_RELOAD='False'
 DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED='True'
-DEFAULT_HELPER="NeteaseMicroBlogHelper"
+DEFAULT_HELPER="BaseHelper"
 DEFAULT_SHOW_TITLE="True"
+
+# Initialize site helpers
 HELPER_NAMES=["BaseHelper", "NeteaseMicroBlogHelper"]
 HELPERS={}
 for helper in HELPER_NAMES:
@@ -56,7 +62,10 @@ class MiniWebPage(QWebPage):
 		self.hoveredLink = None
 		self.applet = applet
 	def userAgentForUrl(self, url):
-		return self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT)
+		if self.applet.getConfigString("customizeuseragent", DEFAULT_CUSTOMIZE_USER_AGENT) == "True":
+			return self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT)
+		else:
+			return QWebPage.userAgentForUrl(self, url)
 	def acceptNavigationRequest(self, frame, request, type):
 		needNewWindow = HELPERS[self.applet.getConfigString("helper", DEFAULT_HELPER)].needNewWindow(request.url())
 		# use helper to translate URL
@@ -91,6 +100,13 @@ class GeneralConfigPage(QWidget):
 		self.reloadIntervalLabel.setEnabled(enabled)
 		self.disableReloadWhenFocusedOption.setEnabled(enabled)
 		self.reloadInterval.setEnabled(enabled)
+	def updateUserAgentSectionUi(self):
+		if self.customizeUserAgentOption.checkState() == Qt.Checked:
+			enabled = True
+		else:
+			enabled = False
+		self.userAgentBox.setEnabled(enabled)
+		self.userAgentLabel.setEnabled(enabled)
 	def setupUi(self):
 		layout = QGridLayout()
 		row = 0
@@ -101,10 +117,16 @@ class GeneralConfigPage(QWidget):
 		layout.addWidget(self.homePageBox, row, 1, Qt.AlignLeft)
 		# user agent
 		row = row + 1
+		self.customizeUserAgentOption = QCheckBox()
+		layout.addWidget(QLabel(QString("Use custom user agent")), row, 0, Qt.AlignRight)
+		layout.addWidget(self.customizeUserAgentOption, row, 1, Qt.AlignLeft)
+		row = row + 1
 		self.userAgentBox = QTextEdit()
-		self.userAgentBox.setFixedSize(QSize(500, 100))
-		layout.addWidget(QLabel(QString("User agent:")), row, 0, Qt.AlignRight)
+		self.userAgentBox.setFixedSize(QSize(300, 100))
+		self.userAgentLabel = QLabel(QString("Custom user agent:"))
+		layout.addWidget(self.userAgentLabel, row, 0, Qt.AlignRight)
 		layout.addWidget(self.userAgentBox, row, 1, Qt.AlignLeft)
+		self.connect(self.customizeUserAgentOption, SIGNAL("stateChanged(int)"), self.updateUserAgentSectionUi)
 		# helpers
 		row = row + 1
 		self.helperBox = QComboBox()
@@ -120,7 +142,8 @@ class GeneralConfigPage(QWidget):
 		self.connect(self.autoReloadOption, SIGNAL("stateChanged(int)"), self.updateReloadSectionUi)
 		row = row + 1
 		self.disableReloadWhenFocusedOption = QCheckBox()
-		self.disableReloadWhenFocusedLabel = QLabel(QString("No auto-refresh if mouse hover or content changed"))
+		self.disableReloadWhenFocusedLabel = QLabel(QString("Pause auto-refresh when<br>mouse hoverring or content changed"))
+		self.disableReloadWhenFocusedLabel.setAlignment(Qt.AlignRight)
 		layout.addWidget(self.disableReloadWhenFocusedLabel, row, 0, Qt.AlignRight)
 		layout.addWidget(self.disableReloadWhenFocusedOption, row, 1, Qt.AlignLeft)
 		row = row + 1
@@ -138,10 +161,12 @@ class GeneralConfigPage(QWidget):
 		self.setLayout(layout)
 		self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
 
-		self.checkBoxes = [{"key":"showtitle", "default":DEFAULT_SHOW_TITLE, "widget":self.showTitleOption},
+		self.checkBoxes = [{"key":"customizeuseragent", "default":DEFAULT_CUSTOMIZE_USER_AGENT, "widget":self.customizeUserAgentOption},
+				{"key":"showtitle", "default":DEFAULT_SHOW_TITLE, "widget":self.showTitleOption},
 				{"key":"autoreload", "default":DEFAULT_AUTO_RELOAD, "widget":self.autoReloadOption},
 				{"key":"disablereloadwhenfocused", "default":DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED, "widget":self.disableReloadWhenFocusedOption}]
 	def loadConfig(self):
+		''' Load saved configuration to the UI'''
 		self.homePageBox.setText(self.applet.getConfigQString("homepage", DEFAULT_HOME_PAGE))
 		self.userAgentBox.setText(self.applet.getConfigQString("useragent", DEFAULT_USER_AGENT))
 		self.helperBox.setCurrentIndex(HELPER_NAMES.index(self.applet.getConfigQString("helper", DEFAULT_HELPER)))
@@ -153,8 +178,11 @@ class GeneralConfigPage(QWidget):
 			else:
 				checkbox["widget"].setCheckState(Qt.Unchecked)
 		self.updateReloadSectionUi()
+		self.updateUserAgentSectionUi()
 	def saveConfig(self):
+		''' Save updated configuration from UI '''
 		self.applet.config().writeEntry(QString("homepage"), self.homePageBox.text())
+		self.applet.config().writeEntry(QString("useragent"), self.userAgentBox.toPlainText())
 		self.applet.config().writeEntry(QString("helper"), QString(HELPER_NAMES[self.helperBox.currentIndex()]))
 		self.applet.config().writeEntry(QString("reloadinterval"), str(QTime().secsTo(self.reloadInterval.time())))
 		for checkbox in self.checkBoxes:
