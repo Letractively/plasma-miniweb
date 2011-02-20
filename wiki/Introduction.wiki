@@ -28,14 +28,15 @@ device, so that you get the mobile versions of your favourite sites.
 1. Install/Upgrade from source
 Go to the root directory of the source, type:
 {{{
-$ plasmapkg -u .
+$ plasmapkg -i .
 }}}
 
 2. Install/Upgrade from downloaded package
 {{{
-$ plasmapkg -u plasma-miniweb-<version>.plasmoid
+$ plasmapkg -i plasma-miniweb-<version>.plasmoid
 }}}
 
+NOTE: Use {{{-u}}} instead of {{{-i}}} to upgrade an existing installation.
 
 = LICENSE =
 
