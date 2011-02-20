@@ -76,7 +76,7 @@ class MiniWebPage(QWebPage):
 		request.setUrl(HELPERS[self.applet.getConfigString("helper", DEFAULT_HELPER)].translateUrl(request.url()))
 		if type == QWebPage.NavigationTypeLinkClicked and (frame == None or needNewWindow):
 			# open in new window
-			os.system("xdg-open " + request.url().toEncoded().data())
+			os.system("xdg-open '" + request.url().toEncoded().data() + "'")
 			return False
 		return QWebPage.acceptNavigationRequest(self, frame, request, type)
 	def createWindow(self, type):
