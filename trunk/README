@@ -11,15 +11,17 @@ device, so that you get the mobile versions of your favourite sites.
 
 FEATURES
 
- * Cookies supported
- * User-agent disguise, which helps accessing mobile versions of your favourite sites
- * An extensible framework that you can write Helpers for specific web sites,
-  designating link processing policies.
+ * Cookies saved
+ * User-agent customization, which helps accessing mobile versions of your favourite sites
+ * Automatically page refreshing
+ * An extensible framework that you can write Helpers for specific web sites to do
+   tasks such as URL pre-processing
 
 
-SYSTEM REQUIREMENTS
+SOFTWARE REQUIREMENTS
 
-Tested under KDE 4.5+
+ * KDE 4.5 or later
+ * python-lxml 2.2.7 or later
 
 
 INSTALL
