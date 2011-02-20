@@ -37,7 +37,11 @@ UPPER_BAR_HEIGHT=24
 # Default settings
 DEFAULT_HOME_PAGE='http://news.google.com/'
 DEFAULT_CUSTOMIZE_USER_AGENT="True"
-DEFAULT_USER_AGENT='Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7'
+#iPhone:
+#DEFAULT_USER_AGENT='Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.05 Mobile/8A293 Safari/6531.22.7'
+#Nokia E51:
+DEFAULT_USER_AGENT='Mozilla/5.0 (SymbianOS/9.2; U; Series60/3.1 NokiaE51-1/220.34.37; Profile/MIDP-2.0 Configuration/CLDC-1.1) AppleWebKit/413 (KHTML, like Gecko) Safari/413'
+
 DEFAULT_RELOAD_INTERVAL=60
 DEFAULT_AUTO_RELOAD='False'
 DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED='True'
