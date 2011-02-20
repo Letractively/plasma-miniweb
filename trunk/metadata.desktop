@@ -2,6 +2,7 @@
 Encoding=UTF-8
 Name=Miniweb
 Name[zh_CN]=迷你浏览器
+Comment=A widget that puts the mini version of your favorite web site on your desktop
 Type=Service
 ServiceTypes=Plasma/Applet
 X-Plasma-API=python
