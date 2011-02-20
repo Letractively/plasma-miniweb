@@ -1,0 +1,19 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Miniweb
+Name[zh_CN]=迷你浏览器
+Comment=A widget that puts the mini version of your favorite web site on your desktop
+Type=Service
+ServiceTypes=Plasma/Applet
+X-Plasma-API=python
+X-Plasma-MainScript=code/main.py
+Icon=internet-web-browser
+X-KDE-PluginInfo-Author=Kun Zhang
+X-KDE-PluginInfo-Email=arthur.kun@gmail.com
+X-KDE-PluginInfo-Name=miniweb
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-Website=http://code.google.com/p/plasma-miniweb/
+X-KDE-PluginInfo-Category=Utilities
+X-KDE-PluginInfo-Depends=
+X-KDE-PluginInfo-License=GPLv2
+X-KDE-PluginInfo-EnabledByDefault=true
