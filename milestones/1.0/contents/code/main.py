@@ -82,7 +82,7 @@ class MiniWebPage(QWebPage):
 		if self.hoveredLink != None:
 			url = QUrl(self.hoveredLink)
 			url = HELPERS[self.applet.getConfigString("helper", DEFAULT_HELPER)].translateUrl(url)
-			os.system("xdg-open " + url.toEncoded().data())
+			os.system("xdg-open '" + url.toEncoded().data() + "'")
 		return None
 class GeneralConfigPage(QWidget):
 	def __init__(self, parent, applet):
