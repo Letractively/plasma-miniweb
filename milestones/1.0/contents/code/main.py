@@ -42,7 +42,7 @@ DEFAULT_CUSTOMIZE_USER_AGENT="True"
 #Nokia E51:
 DEFAULT_USER_AGENT='Mozilla/5.0 (SymbianOS/9.2; U; Series60/3.1 NokiaE51-1/220.34.37; Profile/MIDP-2.0 Configuration/CLDC-1.1) AppleWebKit/413 (KHTML, like Gecko) Safari/413'
 
-DEFAULT_RELOAD_INTERVAL=60
+DEFAULT_RELOAD_INTERVAL=60*5
 DEFAULT_AUTO_RELOAD='False'
 DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED='True'
 DEFAULT_HELPER="BaseHelper"
@@ -222,16 +222,14 @@ class MiniWebApplet(plasmascript.Applet):
 		self.applet.config().writeEntry(QString("cookies"), QString(allCookieString))
 	def loadFinished(self):
 		self.saveCookies()
-		self.busyWidget.setRunning(False)
-		self.busyWidget.hide()
+		self.setBusy(False)
 		doc = lxml.html.document_fromstring(self.web.html().toUtf8().data().decode("utf-8"))
 		title = doc.find(".//title")
 		if title != None:
 			self.title.setText(QString(title.text))
 		self.resetAutoReloadTimer()
 	def loadStarted(self):
-		self.busyWidget.show()
-		self.busyWidget.setRunning(True)
+		self.setBusy(True)
 	def loadCookies(self):
 		allCookieString = self.applet.config().readEntry(QString("cookies"))
 		if allCookieString == None:
@@ -272,7 +270,9 @@ class MiniWebApplet(plasmascript.Applet):
 		else:
 			self.refreshTimer.stop()
 	def init(self):
-		self.resize(PLASMOID_WIDTH, PLASMOID_HEIGHT)
+		# XXX let the desktop manage the applet's size
+		# so that user's custmoized size could be saved
+		#self.resize(PLASMOID_WIDTH, PLASMOID_HEIGHT)
 		self.setAspectRatioMode(Plasma.IgnoreAspectRatio)
 		self.setHasConfigurationInterface(True)
 		# the main layout
@@ -290,11 +290,6 @@ class MiniWebApplet(plasmascript.Applet):
 		self.title.setPreferredHeight(UPPER_BAR_HEIGHT)
 		self.title.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed))
 		upperLayout.addItem(self.title)
-		# A loading icon
-		self.busyWidget = Plasma.BusyWidget()
-		self.busyWidget.setPreferredSize(QSizeF(UPPER_BAR_HEIGHT, UPPER_BAR_HEIGHT))
-		self.busyWidget.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
-		upperLayout.addItem(self.busyWidget)
 		# use a customized WebPage class that sends customized user agent
 		self.page = MiniWebPage(self)
 		self.web.setPage(self.page)
