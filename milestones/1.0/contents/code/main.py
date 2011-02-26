@@ -240,6 +240,8 @@ class MiniWebApplet(plasmascript.Applet):
 		cookies = QNetworkCookie.parseCookies(allCookieString)
 		self.page.cookieJar.setAllCookies(cookies)
 	def checkAutoReloadPage(self):
+		if self.destroyed:
+			return
 		# I can't find a way to know whether the plasmoid has keyboard focus,
 		# so I use this work-around
 		if self.getConfigString("disablereloadwhenfocused", DEFAULT_DISABLE_RELOAD_WHEN_FOCUSED) == "True":
@@ -311,9 +313,14 @@ class MiniWebApplet(plasmascript.Applet):
 		self.connect(self.refreshTimer, SIGNAL("timeout()"), self.checkAutoReloadPage)
 		# keep track of the currently hovered link
 		self.connect(self.page, SIGNAL("linkHovered(QString,QString,QString)"), self.linkHovered)
-
+		# the applet's destroy handler
+		self.connect(self.applet, SIGNAL("appletDestroyed(Plasma::Applet*)"), self.appletDestroyed)
+		self.destroyed = False
 		self.initializeView()
-		self.refreshTimer.start()
-
+	def appletDestroyed(self):
+		print "Miniweb destroyed"
+		self.destroyed = True
+		# We must stop the timer when applet destroyed, otherwise plasma will crash
+		self.refreshTimer.stop()
 def CreateApplet(parent):
 	return MiniWebApplet(parent)
