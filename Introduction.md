@@ -1,0 +1,45 @@
+# INTRODUCTION #
+
+Miniweb is a Plasma widget that embeds a WebView (a Webkit-based embeded web
+browser widget). It aims to display a compact webpage, mostly web-based apps
+like micro-blogging, on your desktop.
+
+Because most web apps are too large in size to fit in this tiny window, Miniweb
+supports user agent disguise to make the web-sites think you are using a mobile
+device, so that you get the mobile versions of your favourite sites.
+
+
+# FEATURES #
+
+  * Cookies saved
+  * User-agent customization, which helps accessing mobile versions of your favourite sites
+  * Automatically page refreshing
+  * An extensible framework that you can write Helpers for specific web sites to do tasks such as URL pre-processing
+
+
+# SOFTWARE REQUIREMENTS #
+
+  * KDE 4.5 or later
+  * python-lxml 2.2.7 or later
+
+
+# INSTALL #
+
+1. Install/Upgrade from source
+Go to the root directory of the source, type:
+```
+$ plasmapkg -i .
+```
+
+2. Install/Upgrade from downloaded package
+```
+$ plasmapkg -i plasma-miniweb-<version>.plasmoid
+```
+
+NOTE: Use `-u` instead of `-i` to upgrade an existing installation.
+
+# LICENSE #
+
+Licensed under GPLv2 <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
